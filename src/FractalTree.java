@@ -6,7 +6,7 @@ public class FractalTree extends Canvas {
     /* Variables with class-wide visibility */
     private static boolean slowMode;
 
-    private final BlockingQueue<Line> bq = new LinkedBlockingQueue<>(20);
+    private final BlockingQueue<Line> bq = new LinkedBlockingQueue<>(1000);
 
     public static class Line {
         int x1;
@@ -35,7 +35,7 @@ public class FractalTree extends Canvas {
 
         int x2 = x + (int)(Math.cos(Math.toRadians(angle)) * height * 8);
         int y2 = y + (int)(Math.sin(Math.toRadians(angle)) * height * 8);
-        Color color = height < 5 ? Color.BLACK : Color.GREEN;
+        Color color = height < 5 ? Color.GREEN : Color.BLACK;
 
         try {
             bq.put(new Line(x, y, x2, y2, color));
@@ -75,8 +75,9 @@ public class FractalTree extends Canvas {
         FractalTree tree = new FractalTree();
         JFrame frame = new JFrame();
         frame.setSize(800,600);
-        frame.setVisible(true);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add(tree);
+        frame.setVisible(true);
 
         tree.makeFractalTree(390, 480, -90, 10);
 
