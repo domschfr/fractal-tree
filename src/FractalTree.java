@@ -1,13 +1,15 @@
 import javax.swing.*;
 import java.awt.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class FractalTree extends Canvas {
     /* Variables with class-wide visibility */
     private static boolean slowMode;
 
-    private final BlockingQueue<Line> bq = new LinkedBlockingQueue<>(1000);
+    private final BlockingQueue<Line> bq = new ArrayBlockingQueue<>(1000);
     private final ExecutorService executorService = Executors.newFixedThreadPool(128);
+    private final AtomicInteger counter = new AtomicInteger(0);
 
     public static class Line {
         int x1;
@@ -44,7 +46,19 @@ public class FractalTree extends Canvas {
             e.printStackTrace();
         }
 
-        executorService.submit(() -> makeFractalTree(x2, y2, angle-20, height-1));
+        counter.incrementAndGet();
+
+        executorService.submit(() -> {
+            try {
+                makeFractalTree(x2, y2, angle-20, height-1);
+            } finally {
+                synchronized (this) {
+                    counter.decrementAndGet();
+                    this.notifyAll();
+                }
+
+            }
+        });
         makeFractalTree(x2, y2, angle+20, height-1);
     }
 
@@ -67,7 +81,7 @@ public class FractalTree extends Canvas {
     }
 
     /* Code for main thread */
-    public static void main(String args[]) /*throws InterruptedException*/ {
+    public static void main(String args[]) throws InterruptedException {
 
         /* Parse args */
         slowMode = args.length != 0 && Boolean.parseBoolean(args[0]);
@@ -80,9 +94,27 @@ public class FractalTree extends Canvas {
         frame.add(tree);
         frame.setVisible(true);
 
-        tree.executorService.submit(() -> tree.makeFractalTree(390, 480, -90, 10));
+        tree.counter.incrementAndGet();
+        try {
+            tree.executorService.submit(() -> tree.makeFractalTree(390, 480, -90, 10));
+        } finally {
+            synchronized (tree) {
+                tree.counter.decrementAndGet();
+                tree.notifyAll();
+            }
+        }
 
-//        tree.executorService.shutdown();
+        synchronized (tree) {
+            while(tree.counter.get() > 0) {
+                try {
+                    tree.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        tree.executorService.shutdown();
 //        if (!tree.executorService.awaitTermination(3, TimeUnit.SECONDS)) {
 //            tree.executorService.shutdownNow();
 //        }
