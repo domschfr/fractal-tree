@@ -81,7 +81,7 @@ public class FractalTree extends Canvas {
     }
 
     /* Code for main thread */
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws Exception {
 
         /* Parse args */
         slowMode = args.length != 0 && Boolean.parseBoolean(args[0]);
@@ -90,19 +90,20 @@ public class FractalTree extends Canvas {
         FractalTree tree = new FractalTree();
         JFrame frame = new JFrame();
         frame.setSize(800,600);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add(tree);
         frame.setVisible(true);
 
         tree.counter.incrementAndGet();
-        try {
-            tree.executorService.submit(() -> tree.makeFractalTree(390, 480, -90, 10));
-        } finally {
-            synchronized (tree) {
-                tree.counter.decrementAndGet();
-                tree.notifyAll();
+        tree.executorService.submit(() -> {
+            try {
+                tree.makeFractalTree(390, 480, -90, 10);
+            } finally {
+                synchronized (tree) {
+                    tree.counter.decrementAndGet();
+                    tree.notifyAll();
+                }
             }
-        }
+        });
 
         synchronized (tree) {
             while(tree.counter.get() > 0) {
@@ -115,9 +116,9 @@ public class FractalTree extends Canvas {
         }
 
         tree.executorService.shutdown();
-//        if (!tree.executorService.awaitTermination(3, TimeUnit.SECONDS)) {
-//            tree.executorService.shutdownNow();
-//        }
+        if (!tree.executorService.awaitTermination(3, TimeUnit.SECONDS)) {
+            tree.executorService.shutdownNow();
+        }
 
         /* Log success as last step */
         System.out.println("Main has finished");
