@@ -1,13 +1,31 @@
 import javax.swing.*;
 import java.awt.*;
+import java.util.concurrent.*;
 
 public class FractalTree extends Canvas {
     /* Variables with class-wide visibility */
     private static boolean slowMode;
 
-    /* Recursive function for calculating all drawcalls for the fractal tree */
-    public void makeFractalTree(Graphics g, int x, int y, int angle, int height) {
+    private final BlockingQueue<Line> bq = new LinkedBlockingQueue<>(20);
 
+    public static class Line {
+        int x1;
+        int y1;
+        int x2;
+        int y2;
+        Color color;
+
+        public Line(int x1, int y1, int x2, int y2, Color color) {
+            this.x1 = x1;
+            this.y1 = y1;
+            this.x2 = x2;
+            this.y2 = y2;
+            this.color = color;
+        }
+    }
+
+    /* Recursive function for calculating all drawcalls for the fractal tree */
+    public void makeFractalTree(int x, int y, int angle, int height) {
         if (slowMode) {
             try {Thread.sleep(100);}
             catch (InterruptedException ie) {ie.printStackTrace();}
@@ -17,13 +35,16 @@ public class FractalTree extends Canvas {
 
         int x2 = x + (int)(Math.cos(Math.toRadians(angle)) * height * 8);
         int y2 = y + (int)(Math.sin(Math.toRadians(angle)) * height * 8);
-        g.setColor(Color.BLACK);
-        if (height < 5 ) g.setColor(Color.GREEN);
-        else g.setColor(Color.BLACK);
-        g.drawLine(x, y, x2, y2);
+        Color color = height < 5 ? Color.BLACK : Color.GREEN;
 
-        makeFractalTree(g, x2, y2, angle-20, height-1);
-        makeFractalTree(g, x2, y2, angle+20, height-1);
+        try {
+            bq.put(new Line(x, y, x2, y2, color));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        makeFractalTree(x2, y2, angle-20, height-1);
+        makeFractalTree(x2, y2, angle+20, height-1);
     }
 
     /* Code for EDT */
@@ -32,9 +53,15 @@ public class FractalTree extends Canvas {
     /* No need to understand swing, a simple endless loop that draws lines is enough */
     @Override
     public void paint(Graphics g) {
-        makeFractalTree(g, 390, 480, -90, 10); // Should not be here!
         while(true) {
-            // ...
+            try {
+                Line line = bq.take();
+                g.setColor(line.color);
+                g.drawLine(line.x1, line.y1, line.x2, line.y2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                break;
+            }
         }
     }
 
@@ -50,6 +77,8 @@ public class FractalTree extends Canvas {
         frame.setSize(800,600);
         frame.setVisible(true);
         frame.add(tree);
+
+        tree.makeFractalTree(390, 480, -90, 10);
 
         /* Log success as last step */
         System.out.println("Main has finished");
