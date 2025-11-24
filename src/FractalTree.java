@@ -67,7 +67,7 @@ public class FractalTree extends Canvas {
     }
 
     /* Code for main thread */
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String args[]) /*throws InterruptedException*/ {
 
         /* Parse args */
         slowMode = args.length != 0 && Boolean.parseBoolean(args[0]);
